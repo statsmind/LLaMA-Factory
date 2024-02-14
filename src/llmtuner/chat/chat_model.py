@@ -91,7 +91,7 @@ class ChatModel:
         prompt: str,
         **input_kwargs,
     ) -> Tuple[Dict[str, Any], int]:
-        input_ids = self.tokenizer.encode(prompt, add_special_tokens=False, return_tensors='pt')
+        input_ids = self.tokenizer.encode(prompt, add_special_tokens=False)
         prompt_length = len(input_ids)
         input_ids = torch.tensor([input_ids], device=self.model.device)
 
