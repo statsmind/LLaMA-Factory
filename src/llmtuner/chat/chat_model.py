@@ -86,6 +86,57 @@ class ChatModel:
 
         return gen_kwargs, prompt_length
 
+    def _process_predict_args(
+        self,
+        prompt: str,
+        **input_kwargs,
+    ) -> Tuple[Dict[str, Any], int]:
+        input_ids = self.tokenizer.encode(prompt, add_special_tokens=False, return_tensors='pt')
+        prompt_length = len(input_ids)
+        input_ids = torch.tensor([input_ids], device=self.model.device)
+
+        do_sample = input_kwargs.pop("do_sample", None)
+        temperature = input_kwargs.pop("temperature", None)
+        top_p = input_kwargs.pop("top_p", None)
+        top_k = input_kwargs.pop("top_k", None)
+        num_return_sequences = input_kwargs.pop("num_return_sequences", None)
+        repetition_penalty = input_kwargs.pop("repetition_penalty", None)
+        max_length = input_kwargs.pop("max_length", None)
+        max_new_tokens = input_kwargs.pop("max_new_tokens", None)
+
+        generating_args = self.generating_args.to_dict()
+        generating_args.update(
+            dict(
+                do_sample=do_sample if do_sample is not None else generating_args["do_sample"],
+                temperature=temperature or generating_args["temperature"],
+                top_p=top_p or generating_args["top_p"],
+                top_k=top_k or generating_args["top_k"],
+                num_return_sequences=num_return_sequences or 1,
+                repetition_penalty=repetition_penalty or generating_args["repetition_penalty"],
+                eos_token_id=[self.tokenizer.eos_token_id] + self.tokenizer.additional_special_tokens_ids,
+                pad_token_id=self.tokenizer.pad_token_id,
+            )
+        )
+
+        if isinstance(num_return_sequences, int) and num_return_sequences > 1:
+            generating_args["do_sample"] = True
+
+        if max_length:
+            generating_args.pop("max_new_tokens", None)
+            generating_args["max_length"] = max_length
+
+        if max_new_tokens:
+            generating_args.pop("max_length", None)
+            generating_args["max_new_tokens"] = max_new_tokens
+
+        gen_kwargs = dict(
+            inputs=input_ids,
+            generation_config=GenerationConfig(**generating_args),
+            logits_processor=get_logits_processor(),
+        )
+
+        return gen_kwargs, prompt_length
+
     @torch.inference_mode()
     def chat(
         self,
@@ -98,6 +149,36 @@ class ChatModel:
             raise ValueError("The current model does not support `chat`.")
 
         gen_kwargs, prompt_length = self._process_args(messages, system, tools, **input_kwargs)
+        generate_output = self.model.generate(**gen_kwargs)
+        response_ids = generate_output[:, prompt_length:]
+        response = self.tokenizer.batch_decode(
+            response_ids, skip_special_tokens=True, clean_up_tokenization_spaces=True
+        )
+        results = []
+        for i in range(len(response)):
+            eos_index = (response_ids[i] == self.tokenizer.eos_token_id).nonzero()
+            response_length = (eos_index[0].item() + 1) if len(eos_index) else len(response_ids[i])
+            results.append(
+                Response(
+                    response_text=response[i],
+                    response_length=response_length,
+                    prompt_length=prompt_length,
+                    finish_reason="stop" if len(eos_index) else "length",
+                )
+            )
+
+        return results
+
+    @torch.inference_mode()
+    def predict(
+            self,
+            prompt: str,
+            **input_kwargs,
+    ) -> List[Response]:
+        if not self.can_generate:
+            raise ValueError("The current model does not support `chat`.")
+
+        gen_kwargs, prompt_length = self._process_predict_args(prompt, **input_kwargs)
         generate_output = self.model.generate(**gen_kwargs)
         response_ids = generate_output[:, prompt_length:]
         response = self.tokenizer.batch_decode(
