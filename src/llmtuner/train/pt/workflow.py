@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, List, Optional
 
 from transformers import DataCollatorForLanguageModeling, Trainer
 
+from .metric import ComputeMetrics
 from ...data import get_dataset, split_dataset
 from ...extras.ploting import plot_loss
 from ...model import load_model_and_tokenizer
@@ -35,6 +36,7 @@ def run_pt(
         tokenizer=tokenizer,
         data_collator=data_collator,
         callbacks=callbacks,
+        compute_metrics=None if not training_args.predict_with_generate else ComputeMetrics(tokenizer=tokenizer)
         **split_dataset(dataset, data_args, training_args),
     )
 
@@ -50,7 +52,8 @@ def run_pt(
 
     # Evaluation
     if training_args.do_eval:
-        metrics = trainer.evaluate(metric_key_prefix="eval")
+        metrics = trainer.evaluate(metric_key_prefix="eval", eval_dataset=dataset)
+        print(metrics)
         try:
             perplexity = math.exp(metrics["eval_loss"])
         except OverflowError:
