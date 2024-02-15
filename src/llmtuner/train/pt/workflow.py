@@ -36,7 +36,7 @@ def run_pt(
         tokenizer=tokenizer,
         data_collator=data_collator,
         callbacks=callbacks,
-        compute_metrics=None if not training_args.predict_with_generate else ComputeMetrics(tokenizer=tokenizer)
+        compute_metrics=ComputeMetrics(tokenizer) if training_args.predict_with_generate else None,
         **split_dataset(dataset, data_args, training_args),
     )
 
@@ -52,7 +52,7 @@ def run_pt(
 
     # Evaluation
     if training_args.do_eval:
-        metrics = trainer.evaluate(metric_key_prefix="eval", eval_dataset=dataset)
+        metrics = trainer.evaluate(metric_key_prefix="eval")
         print(metrics)
         try:
             perplexity = math.exp(metrics["eval_loss"])
