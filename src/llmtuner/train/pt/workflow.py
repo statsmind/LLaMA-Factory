@@ -53,7 +53,7 @@ def run_pt(
     # Evaluation
     if training_args.do_eval:
         metrics = trainer.evaluate(metric_key_prefix="eval")
-        print(metrics)
+        # print(metrics)
         try:
             perplexity = math.exp(metrics["eval_loss"])
         except OverflowError:

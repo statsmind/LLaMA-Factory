@@ -35,6 +35,7 @@ class ComputeMetrics:
         preds, labels = eval_preds
         score_dict = {"rouge-1": [], "rouge-2": [], "rouge-l": [], "bleu-4": []}
 
+        preds = np.argmax(preds, axis=-1)
         preds = np.where(preds != IGNORE_INDEX, preds, self.tokenizer.pad_token_id)
         labels = np.where(labels != IGNORE_INDEX, labels, self.tokenizer.pad_token_id)
 
