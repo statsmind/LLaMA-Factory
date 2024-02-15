@@ -1,4 +1,10 @@
 {
+  "tcm_pt": {
+    "file_name": "tcm_pt.jsonl",
+    "columns": {
+      "prompt": "text"
+    }
+  },
   "tcm_pt_valid": {
     "file_name": "tcm_pt_valid.jsonl",
     "columns": {
