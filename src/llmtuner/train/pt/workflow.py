@@ -36,7 +36,7 @@ def run_pt(
         tokenizer=tokenizer,
         data_collator=data_collator,
         callbacks=callbacks,
-        compute_metrics=ComputeMetrics(tokenizer) if training_args.predict_with_generate else None,
+        compute_metrics=ComputeMetrics(tokenizer) if training_args.do_eval else None,
         **split_dataset(dataset, data_args, training_args),
     )
 
